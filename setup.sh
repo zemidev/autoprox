@@ -1,23 +1,32 @@
 #!/bin/bash
 
-# Initialize error count to 0
-errors=0
+set -e
 
-# Install Proxmox VE, Postfix, and Open-iscsi
-apt-get install -y proxmox-ve postfix open-iscsi || ((errors++))
+export GITHUB_SOURCE="v0.12.3"
+export SCRIPT_RELEASE="v0.12.3"
+export GITHUB_BASE_URL="https://raw.githubusercontent.com/pterodactyl-installer/pterodactyl-installer"
 
-# Remove old Linux kernel images
-apt-get remove -y linux-image-amd64 'linux-image-5.10*' || ((errors++))
+LOG_PATH="/var/log/pterodactyl-installer.log"
 
-# Update Grub
-update-grub || ((errors++))
-
-# Remove os-prober
-apt-get remove -y os-prober || ((errors++))
-
-# Display completion message with error count
-if [[ $errors -eq 0 ]]; then
-  echo "Install complete with no errors."
-else
-  echo "Install complete with $errors errors."
+# check for curl
+if ! [ -x "$(command -v curl)" ]; then
+  echo "* curl is required in order for this script to work."
+  echo "* install using apt (Debian and derivatives) or yum/dnf (CentOS)"
+  exit 1
 fi
+
+# Always remove lib.sh, before downloading it
+rm -rf /tmp/lib.sh
+curl -sSL -o /tmp/lib.sh "$GITHUB_BASE_URL"/"$GITHUB_SOURCE"/lib/lib.sh
+# shellcheck source=lib/lib.sh
+source /tmp/lib.sh
+
+execute_wings() {
+  echo -e "\n\n* pterodactyl-installer $(date) \n\n" >>$LOG_PATH
+
+  update_lib_source
+  run_ui_wings |& tee -a $LOG_PATH
+}
+
+# Run Wings installation
+execute_wings
